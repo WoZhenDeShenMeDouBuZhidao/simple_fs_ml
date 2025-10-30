@@ -24,13 +24,21 @@ def cmd_split(args):
 
 def cmd_train(args):
     utils.set_seed(args.seed)
+    
+    if not os.path.exists(args.dataset):
+        raise ValueError(f"Dataset '{args.target}' not found.")
+    
+    dataset_path = '/'.join(args.dataset.split('/')[:-1])
+    dataset_name = args.dataset.split('/')[-1].replace(".csv", "")
 
-    if args.train is not None and args.valid is not None:
-        train_df = data.load_csv(args.train)
-        valid_df = data.load_csv(args.valid)
-    else:
-        df = data.load_csv(args.dataset)
-        train_df, valid_df = data.split_df(df, train_ratio=args.train_ratio, random_state=args.seed)
+    trainset_path = f"{dataset_path}/{dataset_name}_train.csv"
+    validset_path = f"{dataset_path}/{dataset_name}_valid.csv"
+
+    if (not os.path.exists(trainset_path)) or (not os.path.exists(trainset_path)):
+        raise ValueError(f"Dataset '{args.dataset}' is not splitted.")
+
+    train_df = data.load_csv(trainset_path)
+    valid_df = data.load_csv(validset_path)
 
     if args.exclude:
         train_df = features.drop_excluded(train_df, args.exclude)
@@ -66,20 +74,16 @@ def cmd_train(args):
     )
 
     record = {
-        "params": {
-            "dataset": args.dataset,
-            "train": args.train,
-            "valid": args.valid,
-            "task": args.task,
-            "target": args.target,
-            "exclude": args.exclude,
-            "method": args.method,
-            "ratio": args.ratio,
-            "seed": args.seed,
-            "selected_features": selected,
-            "model_type": args.model,
-        },
+        "dataset": dataset_name,
+        "task": args.task,
+        "method": args.method,
+        "model_type": args.model,
+        "ratio": args.ratio,
         "metrics": metrics,
+        "selected_features": selected,
+        "target": args.target,
+        "exclude": args.exclude,
+        "seed": args.seed,
     }
     utils.write_ndjson(os.path.join(args.log_dir, "metrics.ndjson"), record)
 
@@ -102,10 +106,7 @@ def build_parser():
 
     tp = sub.add_parser("train", help="Train a PyTorch model with feature selection; log metrics.ndjson only.")
     tp.add_argument("--dataset", type=str, help="Path to full CSV (used if --train/--valid not given).")
-    tp.add_argument("--train", type=str, help="Path to training CSV (optional).")
-    tp.add_argument("--valid", type=str, help="Path to validation CSV (optional).")
-    tp.add_argument("--train-ratio", type=float, default=0.8, help="Train split ratio if splitting on the fly.")
-    tp.add_argument("--seed", type=int, default=42, help="Random seed.")
+    tp.add_argument("--seed", type=int, default=43, help="Random seed.")
 
     tp.add_argument("--task", type=str, choices=["regression", "classification"], required=True, help="Task type.")
     tp.add_argument("--target", type=str, required=True, help="Target column name.")

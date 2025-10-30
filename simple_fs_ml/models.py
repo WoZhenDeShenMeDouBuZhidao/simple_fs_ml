@@ -14,7 +14,7 @@ from tqdm import tqdm
 # Fixed hyperparameters
 EPOCHS = 40000           # rely on early stopping
 BATCH_SIZE = 256
-LR_MLP = 1e-4
+LR_MLP = 4e-5
 WEIGHT_DECAY = 0.0
 MAX_PATIENCE = 10
 
@@ -24,7 +24,7 @@ def _device():
 class TorchTabularDataset(Dataset):
     def __init__(self, X: np.ndarray, y: Optional[np.ndarray] = None):
         self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = None if y is None else torch.tensor(y)
+        self.y = torch.tensor(y)
     def __len__(self):
         return self.X.shape[0]
     def __getitem__(self, idx):
@@ -52,7 +52,8 @@ def _compute_metrics(task: str, y_true: np.ndarray, logits: np.ndarray) -> Dict[
         return {"rmse": rmse}
     else:
         if logits.ndim == 1 or logits.shape[1] == 1:
-            prob = 1.0 / (1.0 + np.exp(-logits.ravel()))
+            z = np.clip(logits.ravel(), -80, 80)  # 防止 exp 溢位/下溢
+            prob = 1.0 / (1.0 + np.exp(-z))
             try:
                 auc = float(roc_auc_score(y_true, prob))
             except Exception:
@@ -63,6 +64,7 @@ def _compute_metrics(task: str, y_true: np.ndarray, logits: np.ndarray) -> Dict[
             try:
                 auc = float(roc_auc_score(y_true, prob, multi_class="ovr", average="macro"))
             except Exception:
+                print("exception")
                 auc = float("nan")
         return {"auroc": auc}
 
@@ -82,7 +84,8 @@ def _train_eval_sklearn(
         le = LabelEncoder()
         y_train = le.fit_transform(y_train_raw.astype(str))
         y_valid = le.transform(y_valid_raw.astype(str))
-        clf = LogisticRegression(max_iter=5000)
+
+        clf = LogisticRegression(max_iter=1000)
         clf.fit(X_train, y_train)
         proba = clf.predict_proba(X_valid)  # (n, C)
         return _compute_metrics(task, y_valid, proba)
@@ -106,8 +109,8 @@ def _train_eval_mlp(
         y_valid = y_valid_raw.astype(np.float32)
         num_classes = 1
 
-    ds_tr = TorchTabularDataset(X_train, y_train if task=="classification" else y_train)
-    ds_va = TorchTabularDataset(X_valid, y_valid if task=="classification" else y_valid)
+    ds_tr = TorchTabularDataset(X_train, y_train)
+    ds_va = TorchTabularDataset(X_valid, y_valid)
     dl_tr = DataLoader(ds_tr, batch_size=BATCH_SIZE, shuffle=True)
     dl_va = DataLoader(ds_va, batch_size=BATCH_SIZE, shuffle=False)
 
@@ -167,7 +170,7 @@ def _train_eval_mlp(
         if patience == 0:
             break
 
-    return latest_metrics
+    return {'rmse': best_metric['rmse']} if task == "regression" else {'auroc': best_metric['auroc']}
 
 def train_and_eval(
     train_df: pd.DataFrame,

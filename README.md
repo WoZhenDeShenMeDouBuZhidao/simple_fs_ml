@@ -1,15 +1,5 @@
 
-# Simple FS ML (PyTorch, minimal)
-
-**Changes you requested:**
-
-- Removed logging package and `.log` file. We now **only** append to `logs/metrics.ndjson`.
-- Removed `artifacts` directory; **no model is saved**.
-- Metrics: **RMSE** (regression) and **AUROC** (classification) only.
-- **One-hot only for categorical** features (numeric gets median imputation, no scaling).
-- Switched to **PyTorch** with two model types: `linear` and `mlp` (fixed hyperparameters in code).
-- Validation performance is tracked each epoch via **tqdm** (printed as it trains).
-- Easy to add more models later via `MODEL_REGISTRY` (e.g., SVM/XGBoost wrappers).
+# Simple FS ML
 
 ## Layout
 
@@ -17,13 +7,13 @@
 simple_fs_ml/
 ├── cli.py
 ├── README.md
-├── logs/                      # metrics.ndjson only
+├── logs/        # metrics.ndjson only
 └── simple_fs_ml/
-    ├── __init__.py
-    ├── data.py                # load/split/save CSV
-    ├── features.py            # exclude + selectors + one-hot prep
-    ├── models.py              # PyTorch models + training loop
-    └── utils.py               # seed + ndjson writer
+  ├── __init__.py
+  ├── data.py      # load/split/save CSV
+  ├── features.py    # exclude + selectors + one-hot prep
+  ├── models.py      # PyTorch models + training loop
+  └── utils.py     # seed + ndjson writer
 ```
 
 ## Install
@@ -33,22 +23,22 @@ pip install -U pip
 pip install pandas numpy scikit-learn torch tqdm
 ```
 
-## Split (AmesHousing.csv example)
+## Split (AmesHousing.csv example, dataset should be ',' separated .csv file)
 
 ```bash
-python cli.py split --dataset /mnt/data/AmesHousing.csv   --train-name AmesHousing_train.csv --valid-name AmesHousing_valid.csv
+python cli.py split --dataset ./data/AmesHousing.csv --train-name AmesHousing_train.csv --valid-name AmesHousing_valid.csv
 ```
 
 ## Train (Regression: `SalePrice`)
 
 ```bash
-python cli.py train --dataset /mnt/data/AmesHousing.csv   --task regression   --target SalePrice   --exclude Order PID   --method corr   --ratio 0.3   --model mlp   --log-dir logs
+python cli.py train --dataset ./data/AmesHousing.csv --task regression --target SalePrice --exclude Order PID --method corr --ratio 0.3 --model mlp --log-dir logs
 ```
 
 ## Train (Classification: a categorical target, e.g., `ExterQual`)
 
 ```bash
-python cli.py train --dataset /mnt/data/AmesHousing.csv   --task classification   --target ExterQual   --exclude Order PID   --method random   --ratio 0.2   --model linear   --log-dir logs
+python cli.py train --dataset ./data/AmesHousing.csv --task classification --target ExterQual --exclude Order PID --method random --ratio 0.2 --model linear --log-dir logs
 ```
 
 ### Extending
