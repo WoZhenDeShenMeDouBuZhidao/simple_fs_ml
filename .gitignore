@@ -1,5 +1,6 @@
+.gitignore
 cmd.md
 
-logs/*
+/logs
 
-*/__pycache__
+simple_fs_ml/__pycache__
